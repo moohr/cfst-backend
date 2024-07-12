@@ -28,9 +28,12 @@ CREATE TABLE records (
 - [ ] Add more features
 - [ ] Create algorithm for allocating specific ranges for testing
 
-# Disclaimer
+## Disclaimer
 - This project does not provide any website data.
 - The main aim of this project is to create a publicly usable CNAME target for websites that have audiences in mainland China. Please contact Cloudflare directly to report any websites that violates their TOS. 
 - This project does not make any websites that utilizes this service consume more bandwidth. 
 - This project is not affiliated with Cloudflare or Aliyun.
 - This project is strictly prohibited for use in violation of mainland China laws, including but not limited to circumventing the National Firewall, pornography, gambling, phishing, rogue advertising, copyright content, fake news/facts, trojans, viruses, brute forcing, politics, intimidation etc.
+
+## Acknowledgements
+- IP address location data is supported by [纯真CZ88](https://www.cz88.net)
