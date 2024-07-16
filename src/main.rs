@@ -51,9 +51,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             dns_record_name: get_env("DNS_SUB_DOMAIN").unwrap(),
             api_access_secret: get_env("ALIYUN_ACCESS_SECRET").unwrap(),
         },
-        upgrade_url: "https://alist.moohric.com/cfstfiles/latest".to_string(),
+        upgrade_url: format!("https://ghp.rtc.ovh/https://github.com/GenshinMinecraft/CloudflareSpeedtest-Slave/releases/download/v{}/CloudflareSpeedtest-Slave", env!("CARGO_PKG_VERSION")),
         bootstrap_token: get_env("BOOTSTRAP_TOKEN").unwrap(),
-        version: Version::parse("0.0.2").unwrap().1,
+        version: Version::parse(env!("CARGO_PKG_VERSION")).unwrap().1,
         active_streams: Arc::new(RwLock::new(HashMap::new())),
         ip_ranges: std::env::var("IP_RANGES")
             .unwrap()

@@ -6,6 +6,12 @@ use std::error;
 use std::error::Error;
 use std::net::Ipv4Addr;
 
+/// Checks if IP is valid
+/// Prevents misbehaving clients from causing a panic. Usually caught by aliyun but might as well save an API call.
+pub fn is_valid_ip(ip: &str) -> bool {
+    ip.parse::<Ipv4Addr>().is_ok()
+}
+
 /// Gets the value of the environment variable `env_name` and returns it as a `String`.
 /// Error handling is for weaklings. Who needs it when it can just fail successfully? It's not like people don't know how to analyze tracebacks
 /// Never mind, people like that exists
@@ -40,16 +46,24 @@ pub fn get_client_isp_province(remote_addr: Ipv4Addr) -> Result<(String, String)
     let province_pinyin: String;
     match province {
         Some(province) => {
-            province_pinyin = province
-                .to_pinyin()
-                .map(|x| x.unwrap().plain().to_string())
-                .collect::<Vec<String>>()
-                .join("");
+            // handle special cases
+            if province == "陕西" {
+                province_pinyin = "shaanxi".to_string();
+            } else {
+                province_pinyin = province
+                    .to_pinyin()
+                    .map(|x| x.unwrap().plain().to_string())
+                    .collect::<Vec<String>>()
+                    .join("");
+            }
         }
         None => {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "Failed to get province from IP",
+                format!(
+                    "Failed to get province from IP. IP: {}, Country: {}, Area: {}",
+                    remote_addr, ip_info.country, ip_info.area
+                ),
             )));
         }
     }

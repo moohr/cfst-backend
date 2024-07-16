@@ -1,13 +1,12 @@
 /*
-    * QQWry IP database parser
-    * Special thanks to @lilydjwg for the original code
+ * QQWry IP database parser
+ * Special thanks to @lilydjwg for the original code
 */
 use std::fs::File;
 use std::net::Ipv4Addr;
 use std::path::Path;
 
 use byteorder::{ByteOrder, LittleEndian};
-use eyre::Result;
 use memmap2::Mmap;
 
 pub struct QQWry {
@@ -25,7 +24,7 @@ pub struct IpInfo {
 }
 
 impl QQWry {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let file = File::open("assets/qqwry.dat")?;
         let mmap = unsafe { Mmap::map(&file)? };
         let first = LittleEndian::read_u32(&mmap[0..4]);

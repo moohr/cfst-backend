@@ -1,6 +1,7 @@
 use crate::aliyundns::AliyunDNSClient;
 use crate::cfst_rpc::cloudflare_speedtest_server::CloudflareSpeedtest;
 use crate::model::NodeInfo;
+use crate::util::is_valid_ip;
 use crate::{model, util};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -37,15 +38,24 @@ impl CloudflareSpeedtest for Arc<CloudflareSpeedtestService> {
         &self,
         request: Request<BootstrapRequest>,
     ) -> Result<Response<BootstrapResponse>, Status> {
+        let generate_response =
+            |success: bool, should_upgrade: bool, message: String, session_token: String| {
+                Response::new(BootstrapResponse {
+                    success,
+                    should_upgrade,
+                    message,
+                    session_token,
+                })
+            };
         let remote_addr = match request.remote_addr().unwrap().ip() {
             IpAddr::V4(ip) => ip,
             IpAddr::V6(_) => {
-                return Ok(Response::new(BootstrapResponse {
-                    success: false,
-                    should_upgrade: false,
-                    message: "Client connected with IPv6, which is unsupported.".to_string(),
-                    session_token: "".to_string(),
-                }));
+                return Ok(generate_response(
+                    false,
+                    false,
+                    "Client connected with IPv6, which is unsupported.".to_string(),
+                    "".to_string(),
+                ));
             }
         };
         let req = request.into_inner();
@@ -56,14 +66,58 @@ impl CloudflareSpeedtest for Arc<CloudflareSpeedtestService> {
                 remote_addr,
                 req.node_id
             );
-            return Ok(Response::new(BootstrapResponse {
-                success: false,
-                should_upgrade: false,
-                message: "Invalid bootstrap token".to_string(),
-                session_token: "".to_string(),
-            }));
+            return Ok(generate_response(
+                false,
+                false,
+                "Invalid bootstrap token".to_string(),
+                "".to_string(),
+            ));
         } else {
-            let (isp, province) = util::get_client_isp_province(remote_addr).unwrap();
+            match Version::parse(&req.client_version) {
+                Ok(v) => {
+                    if v.1 < self.version {
+                        log::warn!(
+                            "[{}]: Outdated client version: {}",
+                            remote_addr,
+                            req.client_version
+                        );
+                        return Ok(generate_response(
+                            false,
+                            true,
+                            "Outdated client version".to_string(),
+                            "".to_string(),
+                        ));
+                    }
+                }
+                Err(_) => {
+                    return Ok(generate_response(
+                        false,
+                        false,
+                        "Invalid client version".to_string(),
+                        "".to_string(),
+                    ));
+                }
+            }
+            let (isp, province): (String, String);
+            match util::get_client_isp_province(remote_addr) {
+                Ok((isp_, province_)) => {
+                    isp = isp_;
+                    province = province_;
+                }
+                Err(e) => {
+                    log::error!(
+                        "[{}]: Failed to get ISP and Province from IP: {}",
+                        remote_addr,
+                        e
+                    );
+                    return Ok(generate_response(
+                        false,
+                        false,
+                        "Failed to get ISP and Province from IP".to_string(),
+                        "".to_string(),
+                    ));
+                }
+            }
             log::info!(
                 "[{}]: Bootstrap request from node_id: {}, ISP: {}, Province: {}",
                 remote_addr,
@@ -81,12 +135,7 @@ impl CloudflareSpeedtest for Arc<CloudflareSpeedtestService> {
                     maximum_mbps: req.maximum_mbps,
                 },
             );
-            Ok(Response::new(BootstrapResponse {
-                success: true,
-                should_upgrade: false,
-                message: "Success".to_string(),
-                session_token: token,
-            }))
+            Ok(generate_response(true, false, "Success".to_string(), token))
         }
     }
 
@@ -190,6 +239,18 @@ impl CloudflareSpeedtest for Arc<CloudflareSpeedtestService> {
             .unwrap()
             .province
             .clone();
+        if is_valid_ip(&req.ip_results.first().unwrap().ip_address) == false {
+            log::warn!(
+                "[{}]: Speedtest result upload from node_id: {} failed: Invalid IP address {}",
+                remote_addr,
+                req.node_id,
+                &req.ip_results.first().unwrap().ip_address
+            );
+            return Ok(Response::new(SpeedtestResultResponse {
+                success: false,
+                message: "Invalid IP address".to_string(),
+            }));
+        }
         match self
             .aliyun_dnsclient
             .new_update(
