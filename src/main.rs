@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let speedtest_response = SpeedtestResponse {
                     ip_ranges: cfst_backend_clone.ip_ranges.clone(),
                     minimum_mbps: std::cmp::min(
-                        cfst_backend_clone.maximum_ping,
+                        cfst_backend_clone.minimum_mbps,
                         client_reported_maximum_mbps,
                     ),
                     maximum_ping: cfst_backend_clone.maximum_ping,
